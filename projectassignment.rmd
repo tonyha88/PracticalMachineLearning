@@ -1,0 +1,259 @@
+Practical Machine Learning, Jeff Leek - Coursera 
+Project Assignment 
+Mitchell A. Sanders - 6/10/2014
+========================================================
+
+Purpose is to build a machine learning algorithm to predict activity quality from activity monitors.
+
+Cross-validation is used and estimates from Test data showed accuracy of 100%. When applied to Cross validation 100% again was 
+returned.
+
+Upon final testing of actual TEST data for assignment, 20 predictions production 20 correct results. Again, 100% accuracy.
+
+```{r}
+setwd("~/MACHINE_LEARNING_PRACTICAL/project")
+dir()
+train <- read.csv("pml-training.csv", stringsAsFactors = FALSE)
+testdata <- read.csv("pml-testing.csv")
+```
+
+First step was to view the data and look to see what munging needed
+
+```{r}
+################  explore #####################
+str(train)
+summary(train)
+head(train)
+train$classe
+str(train$classe)
+table(train$classe)
+
+str(testdata)
+summary(testdata)
+```
+
+My first logical step was to minimize the columns used to build 
+the predictive model to what limited columns were available 
+on the actual final TEST set
+
+```{r}
+############# scrub and munge ###################
+# minimizing training set limited to test data column inputs only
+newTrain <- subset(train, select =
+  c(num_window
+  ,   roll_belt
+  , 	pitch_belt
+  , 	yaw_belt
+  , 	total_accel_belt
+  , 	gyros_belt_x
+  , 	gyros_belt_y
+  , 	gyros_belt_z
+  , 	accel_belt_x
+  , 	accel_belt_y
+  , 	accel_belt_z
+  , 	magnet_belt_x
+  , 	magnet_belt_y
+  , 	magnet_belt_z
+  , 	roll_arm
+  , 	pitch_arm
+  , 	yaw_arm
+  , 	total_accel_arm
+  , 	gyros_arm_x
+  , 	gyros_arm_y
+  , 	gyros_arm_z
+  , 	accel_arm_x
+  , 	accel_arm_y
+  , 	accel_arm_z
+  , 	magnet_arm_x
+  , 	magnet_arm_y
+  , 	magnet_arm_z
+  , 	roll_dumbbell
+  , 	pitch_dumbbell
+  , 	yaw_dumbbell
+  , 	total_accel_dumbbell
+  , 	gyros_dumbbell_x
+  , 	gyros_dumbbell_y
+  , 	gyros_dumbbell_z
+  , 	accel_dumbbell_x
+  , 	accel_dumbbell_y
+  , 	accel_dumbbell_z
+  , 	magnet_dumbbell_x
+  , 	magnet_dumbbell_y
+  , 	magnet_dumbbell_z
+  , 	roll_forearm
+  , 	pitch_forearm
+  , 	yaw_forearm
+  , 	kurtosis_roll_forearm
+  , 	kurtosis_picth_forearm
+  , 	kurtosis_yaw_forearm
+  , 	skewness_roll_forearm
+  , 	skewness_pitch_forearm
+  , 	skewness_yaw_forearm
+  , 	max_roll_forearm
+  , 	max_picth_forearm
+  , 	max_yaw_forearm
+  , 	min_roll_forearm
+  , 	min_pitch_forearm
+  , 	min_yaw_forearm
+  , 	amplitude_roll_forearm
+  , 	total_accel_forearm
+  , 	gyros_forearm_x
+  , 	gyros_forearm_y
+  , 	gyros_forearm_z
+  , 	accel_forearm_x
+  , 	accel_forearm_y
+  , 	accel_forearm_z
+  , 	magnet_forearm_x
+  , 	magnet_forearm_y
+  , 	magnet_forearm_z
+  ,   classe
+  ))
+
+str(newTrain)
+summary(newTrain)
+
+```
+
+After going back and reviewing the TRAIN data against columns needed
+for the TEST data, I found lots of noise that in my judgement
+could be cleaned out with minial signal loss
+
+```{r}
+# removing the columns with mostly noise
+# amounts to only 2% rows (~400 of 19,000), while keeping data from 
+# other columns in same rows (good data)
+newTrain2 <- subset(newTrain, select = c(
+  -kurtosis_roll_forearm
+  ,   -kurtosis_picth_forearm
+  , 	-kurtosis_yaw_forearm
+  , 	-skewness_roll_forearm
+  , 	-skewness_pitch_forearm
+  , 	-skewness_yaw_forearm
+  , 	-max_roll_forearm
+  , 	-max_picth_forearm
+  , 	-max_yaw_forearm
+  , 	-min_roll_forearm
+  , 	-min_pitch_forearm
+  , 	-min_yaw_forearm
+  , 	-amplitude_roll_forearm
+  
+  ))
+
+str(newTrain2)
+summary(newTrain2)
+
+```
+
+munging the data back to usefull form
+
+```{r}
+# factor of Y variable
+newTrain2$classe <- as.factor(newTrain2$classe)
+str(newTrain2)
+dim(newTrain2)
+
+# writing back to original "train" name for convienence
+train <- newTrain2
+```
+
+Breaking up the data here into a 70% training, and 15% test, and 15% 
+cross-validation
+
+
+```{r}
+# make train and test data
+library(caret)
+inTrain <- createDataPartition(train$classe, p=0.7, list=F)
+train <- train[inTrain,]
+test <- train[-inTrain,]
+
+# divide test into test and cross-validation
+cvTrain <- createDataPartition(test$classe, p=0.5, list=F)
+cv <- test[-cvTrain,]
+test <- test[cvTrain,]
+
+#view them all
+str(train)
+str(test)
+str(cv)
+
+```
+
+I tried (not indicated here) different algorithms but ran into issues
+and just went to the Random Forest algorithm
+which acutally took a long time to run
+
+```{r}
+######## run some algorithms and look at results ############
+
+#Build models
+library(class)
+# tried other models, but didn't run right, trying Random Forest
+mod2 <- train(classe ~.,method="rf", data=train)
+# note* this took a long time to run - like ~ 1 hour
+
+#Predict on the testing set
+pred2 <- predict(mod2,test);
+
+
+accuracy1 <- (test$classe == pred2)
+
+length(accuracy1[accuracy1 == TRUE]) / length(accuracy1);
+
+
+table(test$classe, pred2)
+# results
+#pred2
+#A   B   C   D   E
+#A 581   0   0   0   0
+#B   0 400   0   0   0
+#C   0   0 367   0   0
+#D   0   0   0 325   0
+#E   0   0   0   0 385
+
+# let's check it against the cross validation data
+predCV <- predict(mod2, cv)
+table(cv$classe, predCV)
+
+##### getting 100% accuracy !!!!!!!!
+
+```
+
+surprisingly I got a 100% accuracy on the test and then again on 
+the cross-validation
+this left really no further room for improvement or use of further
+techniques (which I was actually looking forward to :) )
+
+following the instructions from the professor as described
+online, I proceeded with the funciton below
+and wrote out 20 files which I then submitted online
+with 100% predictive accuracy
+
+```{r}
+##### now for doing and submitting the assignment #####
+testdata <- read.csv("pml-testing.csv")
+str(testdata)
+predTestdata <- predict(mod2, testdata)
+predTestdata
+class(predTestdata)
+answers <- as.character(predTestdata)
+class(answers)
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(answers)
+
+# results all submitted via the coursera online "Assignments" page
+# results back - 20 of 20 correct! 100% accurate
+
+```
+
+End of assignment and end of class - good job again and 
+thanks to Jeff Leek, Coursera, and John Hopkins University
+
